@@ -473,6 +473,7 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
                 link = a['href']
                 title = result.find('h3')
                 snippet = result.find(class_='st')
+                print(link, title, snippet)
             except KeyError:
                 continue
 
