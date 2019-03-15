@@ -345,6 +345,166 @@ def search(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
         else:
             url = url_next_page_num % vars()
 
+def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
+           stop=None, domains=None, pause=2.0, only_standard=False,
+           extra_params={}, tpe='', user_agent=None):
+    """
+    Search the given query string using Google.
+    Similar to search but returns tuple with title, URL and snippet
+
+    :param str query: Query string. Must NOT be url-encoded.
+    :param str tld: Top level domain.
+    :param str lang: Language.
+    :param str tbs: Time limits (i.e "qdr:h" => last hour,
+        "qdr:d" => last 24 hours, "qdr:m" => last month).
+    :param str safe: Safe search.
+    :param int num: Number of results per page.
+    :param int start: First result to retrieve.
+    :param int or None stop: Last result to retrieve.
+        Use None to keep searching forever.
+    :param list of str or None domains: A list of web domains to constrain
+        the search.
+    :param float pause: Lapse to wait between HTTP requests.
+        A lapse too long will make the search slow, but a lapse too short may
+        cause Google to block your IP. Your mileage may vary!
+    :param bool only_standard: If True, only returns the standard results from
+        each page. If False, it returns every possible link from each page,
+        except for those that point back to Google itself. Defaults to False
+        for backwards compatibility with older versions of this module.
+    :param dict of str to str extra_params: A dictionary of extra HTTP GET
+        parameters, which must be URL encoded. For example if you don't want
+        Google to filter similar results you can set the extra_params to
+        {'filter': '0'} which will append '&filter=0' to every query.
+    :param str tpe: Search type (images, videos, news, shopping, books, apps)
+        Use the following values {videos: 'vid', images: 'isch',
+        news: 'nws', shopping: 'shop', books: 'bks', applications: 'app'}
+    :param str or None user_agent: User agent for the HTTP requests.
+        Use None for the default.
+
+    :rtype: generator of tuple (3 str)
+    :return: Generator (iterator) that yields found URL, title and snippet in tuples.
+        If the stop parameter is None the iterator will loop forever.
+    """
+    # Set of hashes for the results found.
+    # This is used to avoid repeated results.
+    hashes = set()
+
+    # Count the number of links yielded
+    count = 0
+
+    # Prepare domain list if it exists.
+    if domains:
+        query = query + ' ' + ' OR '.join(
+                                'site:' + domain for domain in domains)
+
+    # Prepare the search string.
+    query = quote_plus(query)
+
+    # Check extra_params for overlapping
+    for builtin_param in ('hl', 'q', 'btnG', 'tbs', 'safe', 'tbm'):
+        if builtin_param in extra_params.keys():
+            raise ValueError(
+                'GET parameter "%s" is overlapping with \
+                the built-in GET parameter',
+                builtin_param
+            )
+
+    # Grab the cookie from the home page.
+    get_page(url_home % vars(), user_agent)
+
+    # Prepare the URL of the first request.
+    if start:
+        if num == 10:
+            url = url_next_page % vars()
+        else:
+            url = url_next_page_num % vars()
+    else:
+        if num == 10:
+            url = url_search % vars()
+        else:
+            url = url_search_num % vars()
+
+    # Loop until we reach the maximum result, if any (otherwise, loop forever).
+    while not stop or count < stop:
+        # Remeber last count to detect the end of results
+        last_count = count
+
+        try:  # Is it python<3?
+            iter_extra_params = extra_params.iteritems()
+        except AttributeError:  # Or python>3?
+            iter_extra_params = extra_params.items()
+        # Append extra GET_parameters to URL
+        for k, v in iter_extra_params:
+            url += url + ('&%s=%s' % (k, v))
+
+        # Sleep between requests.
+        time.sleep(pause)
+
+        # Request the Google Search results page.
+        html = get_page(url, user_agent)
+
+        # Parse the response and process every anchored URL.
+        if is_bs4:
+            soup = BeautifulSoup(html, 'html.parser')
+        else:
+            soup = BeautifulSoup(html)
+        try:
+            results = soup.find(id='search').findAll(id='g')
+            # Sometimes (depending on the User-agent) there is
+            # no id "search" in html response
+        except AttributeError:
+            # Remove links of the top bar
+            gbar = soup.find(id='gbar')
+            if gbar:
+                gbar.clear()
+            results = soup.findAll(id='g')
+
+        for result in results:
+            a = result.find('a')
+
+            # Leave only the "standard" results if requested.
+            # Otherwise grab all possible links.
+            if only_standard and (
+                    not a.parent or a.parent.name.lower() != "h3"):
+                continue
+
+            # Get the URL from the anchor tag.
+            try:
+                link = a['href']
+                title = result.find('h3')
+                snippet = result.find(class_='st')
+            except KeyError:
+                continue
+
+            # Filter invalid links and links pointing to Google itself.
+            link = filter_result(link)
+            if not link:
+                continue
+
+            # Discard repeated results.
+            h = hash(link)
+            if h in hashes:
+                continue
+            hashes.add(h)
+
+            # Yield the result.
+            yield (link,title,snippet)
+
+            count += 1
+            if stop and count >= stop:
+                return
+
+        # End if there are no more results.
+        if last_count == count:
+            break
+
+        # Prepare the URL for the next request.
+        start += num
+        if num == 10:
+            url = url_next_page % vars()
+        else:
+            url = url_next_page_num % vars()
+
 
 # Shortcut to search images.
 # Beware, this does not return the image link.
