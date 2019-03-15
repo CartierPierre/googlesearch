@@ -57,6 +57,7 @@ __all__ = [
     'search',
 
     # Specialized search functions.
+    'search_tuple',
     'search_images', 'search_news',
     'search_videos', 'search_shop',
     'search_books', 'search_apps',
@@ -388,8 +389,6 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
     # Set of hashes for the results found.
     # This is used to avoid repeated results.
     hashes = set()
-
-erzerhgtrehetzhtryheyh
     print("WHOLOLOLO")
 
     # Count the number of links yielded
@@ -452,7 +451,7 @@ erzerhgtrehetzhtryheyh
         else:
             soup = BeautifulSoup(html)
         try:
-            results = soup.find(id='search').findAll(id='g')
+            results = soup.find(id='search').findAll(class_='g')
             # Sometimes (depending on the User-agent) there is
             # no id "search" in html response
         except AttributeError:
@@ -460,7 +459,7 @@ erzerhgtrehetzhtryheyh
             gbar = soup.find(id='gbar')
             if gbar:
                 gbar.clear()
-            results = soup.findAll(id='g')
+            results = soup.findAll(class_='g')
 
         for result in results:
             a = result.find('a')
@@ -474,12 +473,12 @@ erzerhgtrehetzhtryheyh
             # Get the URL from the anchor tag.
             try:
                 link = a['href']
-                title = result.find('h3')
-                snippet = result.find(class_='st')
-                print(link, title, snippet)
+                title = result.find('h3').get_text()
+                snippet = result.find(class_='st').get_text()
             except KeyError:
                 continue
-
+            except Exception as e:
+                print(e)
             # Filter invalid links and links pointing to Google itself.
             link = filter_result(link)
             if not link:
