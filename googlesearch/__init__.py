@@ -389,7 +389,7 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
     # This is used to avoid repeated results.
     hashes = set()
 
-
+erzerhgtrehetzhtryheyh
     print("WHOLOLOLO")
 
     # Count the number of links yielded
