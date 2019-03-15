@@ -389,7 +389,6 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
     # Set of hashes for the results found.
     # This is used to avoid repeated results.
     hashes = set()
-    print("WHOLOLOLO")
 
     # Count the number of links yielded
     count = 0
@@ -477,8 +476,6 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
                 snippet = result.find(class_='st').get_text()
             except KeyError:
                 continue
-            except Exception as e:
-                print(e)
             # Filter invalid links and links pointing to Google itself.
             link = filter_result(link)
             if not link:
@@ -507,7 +504,7 @@ def search_tuple(query, tld='com', lang='en', tbs='0', safe='off', num=10, start
             url = url_next_page % vars()
         else:
             url = url_next_page_num % vars()
-
+    
 
 # Shortcut to search images.
 # Beware, this does not return the image link.
